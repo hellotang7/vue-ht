@@ -1,317 +1,465 @@
 <script setup lang="ts">
-import {defineAsyncComponent, getCurrentInstance, h, inject, reactive, ref, resolveComponent, shallowRef} from "vue";
-import type {VxeGridInstance, VxeGridProps} from 'vxe-table';
-import {Message} from "view-ui-plus";
-import {findListByTableParameter} from "@/api/system";
-import {ctrlRelay, restart} from "@/api/iotEquipment";
-import {getWindowCenteringCoordinate} from "@/components/aionWindow/WindowUtils";
-import WindowType from "@/components/aionWindow/WindowType";
-import WindowStatus from "@/components/aionWindow/WindowStatus";
-import dayjs from "dayjs"
+    import {
+        defineAsyncComponent,
+        getCurrentInstance,
+        h,
+        inject,
+        onMounted,
+        reactive,
+        ref,
+        resolveComponent,
+        shallowRef
+    } from 'vue';
+    import type {VxeGridInstance, VxeGridProps} from 'vxe-table';
+    import {Message} from 'view-ui-plus';
+    import {findListByTableParameter} from '@/api/system';
+    import {ctrlRelay, restart} from '@/api/iotEquipment';
+    import {getWindowCenteringCoordinate} from '@/components/aionWindow/WindowUtils';
+    import WindowType from '@/components/aionWindow/WindowType';
+    import WindowStatus from '@/components/aionWindow/WindowStatus';
+    import dayjs from 'dayjs';
+    import {VxeGridListeners, VXETable} from 'vxe-table';
 
-const $WindowManager: any = getCurrentInstance()!.appContext.config.globalProperties.$WindowManager;
-const $Window: any = inject("$Window")!;
+    const $WindowManager: any = getCurrentInstance()!.appContext.config.globalProperties.$WindowManager;
+    const $Window: any = inject('$Window')!;
 
-interface IotEquipment {
-  id?: number;
-  no?: string;
-  createTime?: Date;
-  updateTime?: Date;
-  name?: string;
-  type?: number;
-  businessStatus?: number;
-  workStatus?: number;
-  tenantNo?: string;
-  passwordHash?: string;
-  passwordSalt?: string;
-}
-
-interface Page {
-  page: number,
-  pageSize: number,
-  total: number
-}
-
-const loading = ref<boolean>(false);
-
-const page = ref<Page>({
-  page: 1,
-  pageSize: 10,
-  total: 0
-});
-
-const findIotEquipmentList = () => {
-
-  findListByTableParameter("iotEquipment", {
-    page: 1,
-    pageSize: 10
-  }).then((res: any) => {
-    gridOptions.data = res.data.data.list;
-    page.value.total = res.data.data.total;
-
-  })
-}
-
-findIotEquipmentList();
-
-
-
-const gridOptions = reactive<VxeGridProps<IotEquipment>>({
-  border: true,
-
-
-    formConfig: {
-        titleWidth: 100,
-        titleAlign: 'right',
-        items: [
-            { field: 'no', title: '设备编号', span: 8, itemRender: { name: '$input', props: { placeholder: '请输入设备编号' } } },
-            { field: 'name', title: '设备名称', span: 8, itemRender: { name: '$input', props: { placeholder: '请输入设备名称' } } },
-            { field: 'workStatus', title: '工作状态', span: 8, itemRender: { name: '$select', options: [ { label: '离线', value: '0' }, { label: '在线', value: '1' }],props: { placeholder: '请选择工作状态' } } },
-            { field: 'tenantNo', title: '租户编号', span: 8,  itemRender: { name: '$input', props: { placeholder: '请输入租户编号' } }},
-            { field: 'createTime', title: '创建时间', span: 8,  itemRender: { name: '$select',options: [ { label: '今天', value: '0' }, { label: '昨天', value: '1' }, { label: '最近7天', value: '3' }, { label: '最近30天', value: '4' }], props: { placeholder: '请输入创建时间' } } },
-            { field: 'lastOnLineTime', title: '最后在线时间', span: 8,  itemRender: { name: '$select',options: [ { label: '今天', value: '0' }, { label: '昨天', value: '1' }, { label: '最近7天', value: '3' }, { label: '最近30天', value: '4' }], props: {  placeholder: '请输入最后在线时间' } } },
-            {span: 24, align: 'center', itemRender: { name: '$buttons', children: [{ props: { type: 'submit', content: '查询', status: 'primary' } }, { props: { type: 'reset', content: '重置' } }] } },
-
-        ]
-    },
-
-    exportConfig: {},
-
-    toolbarConfig: {
-        perfect: true,
-        refresh: {
-            icon: 'vxe-icon-refresh',
-            iconLoading: 'vxe-icon-refresh roll',
-        },
-
-        export: {
-            icon: 'vxe-icon-cloud-download'
-        },
-        custom: {
-            icon: 'vxe-icon-menu'
-        }
-    },
-
-    // proxyConfig: {
-    //     props: {
-    //         result: 'result',
-    //         total: 'page.total'
-    //     },
-    //     ajax: {
-    //         // 接收 Promise
-    //         query: ({ page }) => {
-    //             return findListByTableParameter("iotEquipment", {
-    //                 page: page.currentPage,
-    //                 pageSize: page.pageSize
-    //             }).then((res) => {
-    //                 return {
-    //
-    //                     result: res.data.data.list,
-    //                     total: res.data.data.total
-    //
-    //                 };
-    //             });
-    //         },
-    //     }
-    // },
-
-
-  columns: [
-    // {type: 'id', width: 50},
-    {field: 'no', title: '设备编号'},
-    {field: 'name', title: '设备名称'},
-    {
-      field: 'type',
-      title: '设备定义',
-      slots: {
-        default:({row})=>row.equipmentDef.name
-      }
-    },
-    {
-      field: 'businessStatus',
-      title: '业务状态',
-      slots: {
-        default: () => "未定义"
-      }
-    },
-    {
-      field: 'workStatus',
-      title: '工作状态',
-      slots: {
-        default: ({row}) => {
-          return row.workStatus === 1 ? '在线' : '离线';
-        }
-      }
-    },
-    {field: 'tenantNo', title: '租户编号'},
-    {
-      field: 'lastOnLineTime',
-      title: '最后在线时间',
-      slots: {
-          default: ({row}) => dayjs(row.lastOnLineTime).format("YYYY-MM-DD HH:mm:ss")
-      }
-    },
-    {
-      field: 'createTime',
-      title: '创建时间',
-      slots: {
-        default: ({row}) => dayjs(row.createTime).format("YYYY-MM-DD HH:mm:ss")
-      }
-    },
-    {
-      field: 'updateTime',
-      title: '修改时间',
-      slots: {
-        default: ({row}) => dayjs(row.updateTime).format("YYYY-MM-DD HH:mm:ss")
-      }
-    },
-    {
-      field: 'operation',
-      title: '操作',
-      width: 300,
-      slots: {
-        // 使用渲染函数
-        default: ({row}) => {
-          return h('div', {}, [
-            h(resolveComponent('Button'), {
-                  style: {
-                    marginRight: '6px'
-                  },
-                  onClick: () => {
-                    $Window.exposed.setShowBodyMask(true);
-                    restart(row.no).then((res) => {
-                      if (res.data.success) {
-                        Message.info(res.data.msg);
-                      } else {
-                        Message.error(res.data.msg);
-                      }
-                    }).catch(() => {
-                      Message.error("请求异常");
-                    }).finally(() => {
-                      $Window.exposed.setShowBodyMask(false);
-                    })
-                  },
-                  type: 'info',
-                },
-                {
-                  default() {
-                    return '重启'
-                  }
-                }
-            ),
-            h(resolveComponent('Button'),
-                {
-                  style: {
-                    marginRight: '6px'
-                  },
-                  onClick: () => {
-                    loading.value = true;
-                    ctrlRelay(row.no, 3, true).then((res) => {
-                      if (res.data.success) {
-                        Message.info(res.data.msg);
-                      } else {
-                        Message.error(res.data.msg);
-                      }
-                    }).catch(() => {
-                      Message.error("请求异常");
-                    }).finally(() => {
-                      loading.value = false;
-                    })
-                  },
-                  type: 'info',
-                },
-                {
-                  default() {
-                    return '统开'
-                  }
-                }
-            ),
-            h(resolveComponent('Button'),
-                {
-                  style: {
-                    marginRight: '6px'
-                  },
-                  onClick: () => {
-                    loading.value = true;
-                    ctrlRelay(row.no, 3, false).then((res) => {
-                      if (res.data.success) {
-                        Message.info(res.data.msg);
-                      } else {
-                        Message.error(res.data.msg);
-                      }
-                    }).catch(() => {
-                      Message.error("请求异常");
-                    }).finally(() => {
-                      loading.value = false;
-                    })
-                  },
-                  type: 'info',
-                },
-                {
-                  default() {
-                    return '统关'
-                  }
-                }
-            ),
-            h(resolveComponent('Button'), {
-                  style: {
-                    marginRight: '6px'
-                  },
-                  onClick: () => {
-                    openSettingsPanelWindow(row.no);
-                  },
-                  type: 'info',
-                },
-                {
-                  default() {
-                    return '设置'
-                  }
-                }
-            ),
-          ])
-        }
-      }
-    },
-  ],
-  data: []
-});
-
-const openSettingsPanelWindow = (no: number) => {
-  const windowWidth = 800;
-  const windowHeight = 480;
-  const windowCenteringCoordinate = getWindowCenteringCoordinate(windowWidth, windowHeight);
-  let path: string = "/views/iotEquipment/SettingsPanel.vue";
-  const views = import.meta.glob("/src/views/*/*.vue");
-  $WindowManager.exposed.addWindow({
-    type: WindowType.component,
-    // @ts-ignore
-    component: shallowRef(defineAsyncComponent(views[`/src${path}`])),
-    title: "NWD设备设置面板",
-    taskBar: false,
-    status: WindowStatus.NORMAL,
-    zIndex: 1,
-    icon: "icon-weibiaoti-_huabanfuben",
-    width: windowWidth,
-    height: windowHeight,
-    parentHandleId: $Window!.exposed.getHandleId(),
-    ...windowCenteringCoordinate,
-    initParameter: {
-      no
+    interface IotEquipment {
+        id?: number;
+        no?: string;
+        createTime?: Date;
+        updateTime?: Date;
+        name?: string;
+        type?: number;
+        businessStatus?: number;
+        workStatus?: number;
+        tenantNo?: string;
+        passwordHash?: string;
+        passwordSalt?: string;
     }
-  });
-}
+
+    interface Page {
+        page: number,
+        pageSize: number,
+        total: number
+    }
+
+    interface RowVO {
+        [key: string]: any;
+    }
+
+    const loading = ref<boolean>(false);
+
+    //无效，导出用
+    const serveApiUrl = 'https://api.vxetable.cn/demo';
+
+    const xGrid = ref<VxeGridInstance<RowVO>>();
+
+    findListByTableParameter('iotEquipment', {
+        page: 1,
+        pageSize: 10,
+    }).then((res: any) => {
+        console.log(res.data);})
+
+    const gridOptions = reactive<VxeGridProps<RowVO>>({
+        border: true,
+        showHeaderOverflow: true,
+        showOverflow: true,
+        keepSource: true,
+        id: 'full_edit_1',
+        height: 600,
+        rowConfig: {
+            keyField: 'id',
+            isHover: true
+        },
+        // columnConfig: {
+        //     resizable: true
+        // },
+
+        customConfig: {
+            storage: true,
+            checkMethod({column}) {
+                if (['nickname', 'role'].includes(column.field)) {
+                    return false;
+                }
+                return true;
+            }
+        },
+        printConfig: {
+            columns: [
+                {field: 'name'},
+                {field: 'email'},
+                {field: 'nickname'},
+                {field: 'age'},
+                {field: 'amount'}
+            ]
+        },
+        // sortConfig: {
+        //     trigger: 'cell',
+        //     remote: true
+        // },
+        filterConfig: {
+            remote: true
+        },
+        pagerConfig: {
+            enabled: true,
+            pageSize: 10,
+            pageSizes: [5, 10, 15, 20, 50, 100, 200, 500, 1000]
+        },
+        formConfig: {
+            titleWidth: 100,
+            titleAlign: 'right',
+            items: [
+                {
+                    field: 'no',
+                    title: '设备编号',
+                    span: 8,
+                    itemRender: {name: '$input', props: {placeholder: '请输入设备编号'}}
+
+                },
+                {
+                    field: 'name',
+                    title: '设备名称',
+                    span: 8,
+                    itemRender: {name: '$input', props: {placeholder: '请输入设备名称'}}
+                },
+                {
+                    field: 'workStatus',
+                    title: '工作状态',
+                    span: 8,
+                    itemRender: {
+                        name: '$select',
+
+                        options: [{label: '离线', value: '0'},{label: '在线', value: '1'}],
+                        props: {placeholder: '请选择工作状态', clearable:true}
+                    }
+                },
+                {
+                    field: 'tenantNo',
+                    title: '租户编号',
+                    span: 8,
+                    itemRender: {name: '$input', props: {placeholder: '请输入租户编号'}}
+                },
+                {
+                    field: 'createTime',
+                    title: '创建时间',
+                    span: 8,
+                    itemRender: {
+                        name: '$select',
+                        options: [{label: '今天', value: '0'}, {label: '昨天', value: '1'}, {
+                            label: '最近7天',
+                            value: '3'
+                        }, {label: '最近30天', value: '4'}],
+                        props: {placeholder: '请输入创建时间',clearable:true}
+                    }
+                },
+                {
+                    field: 'lastOnLineTime',
+                    title: '最后在线时间',
+                    span: 8,
+                    itemRender: {
+                        name: '$select',
+                        options: [{label: '今天', value: '0'}, {label: '昨天', value: '1'}, {
+                            label: '最近7天',
+                            value: '3'
+                        }, {label: '最近30天', value: '4'}],
+                        props: {placeholder: '请输入最后在线时间',clearable:true}
+                    }
+                },
+                {
+                    span: 24,
+                    align: 'right',
+                    itemRender: {
+                        name: '$buttons',
+                        children: [{
+                            props: {
+                                type: 'submit',
+                                content: '查询',
+                                status: 'primary'
+                            }
+                        }, {props: {type: 'reset', content: '重置'}}]
+                    }
+                },
+
+            ]
+        },
+        exportConfig: {},
+
+        toolbarConfig: {
+            perfect: true,
+
+            refresh: true, // 显示刷新按钮
+            // import: true, // 显示导入按钮
+            export: true,
+            // print: true, // 显示打印按钮
+            // zoom: true, // 显示全屏按钮
+            custom: true // 显示自定义列按钮
+        },
+        proxyConfig: {
+            seq: true,
+            sort: true,
+            filter: true,
+            form: true,
+            props: {
+                result: 'result',
+                total: 'page.total'
+            },
+            ajax: {
+                query: ({page, sorts, filters, form}) => {
+                    const queryParams: any = Object.assign({}, form);
+                    const firstSort = sorts[0];
+                    if (firstSort) {
+                        queryParams.sort = firstSort.field;
+                        queryParams.order = firstSort.order;
+                    }
+
+                    filters.forEach(({field, values}) => {
+                        queryParams[field] = values.join(',');
+                    });
+
+
+                    // 返回一个 Promise 以触发查询行为
+                    return findListByTableParameter('iotEquipment', {
+                        page: page.currentPage,
+                        pageSize: page.pageSize,
+                    }).then((res: any) => {
+                        return {
+                            result: res.data.data.list,
+                            total: res.data.data.total,
+                        };
+                    });
+
+
+
+
+
+                },
+            },
+        },
+
+        columns: [
+            // { type: 'checkbox', title: 'ID', width: 120 },
+            {field: 'no', title: '设备编号'},
+            {field: 'name', title: '设备名称'},
+            {field: 'type', title: '设备定义'},
+
+            {
+                field: 'businessStatus', title: '业务状态',
+                formatter({cellValue}) {
+                    return cellValue === '1' ? '在线' : '未定义';
+                }
+            },
+            {
+                field: 'workStatus', title: '工作状态',
+                formatter({cellValue}) {
+                    return cellValue === '1' ? '离线' : '在线';
+                }
+            },
+
+            {field: 'tenantNo', title: '租户编号'},
+            {
+                field: 'lastOnLineTime', title: '修改时间',
+                formatter({cellValue}) {
+                    return dayjs(cellValue).format('YYYY-MM-DD HH:mm:ss');
+
+
+                }
+            },
+            {
+                field: 'createTime',
+                title: '创建时间',
+                formatter({cellValue}) {
+                    return dayjs(cellValue).format('YYYY-MM-DD HH:mm:ss');
+                }
+            },
+            {
+                field: 'updateTime',
+                title: '最后在线时间',
+                formatter({cellValue}) {
+                    return dayjs(cellValue).format('YYYY-MM-DD HH:mm:ss');
+                }
+            },
+            {
+                field: 'operation',
+                title: '操作',
+                width: 300,
+                slots: {
+                    // 使用渲染函数
+                    default: ({row}) => {
+                        return h('div', {}, [
+                            h(resolveComponent('Button'), {
+                                    style: {
+                                        marginRight: '6px'
+                                    },
+                                    onClick: () => {
+                                        $Window.exposed.setShowBodyMask(true);
+                                        restart(row.no).then((res) => {
+                                            if (res.data.success) {
+                                                Message.info(res.data.msg);
+                                            } else {
+                                                Message.error(res.data.msg);
+                                            }
+                                        }).catch(() => {
+                                            Message.error('请求异常');
+                                        }).finally(() => {
+                                            $Window.exposed.setShowBodyMask(false);
+                                        });
+                                    },
+                                    type: 'info',
+                                },
+                                {
+                                    default() {
+                                        return '重启';
+                                    }
+                                }
+                            ),
+                            h(resolveComponent('Button'),
+                                {
+                                    style: {
+                                        marginRight: '6px'
+                                    },
+                                    onClick: () => {
+                                        loading.value = true;
+                                        ctrlRelay(row.no, 3, true).then((res) => {
+                                            if (res.data.success) {
+                                                Message.info(res.data.msg);
+                                            } else {
+                                                Message.error(res.data.msg);
+                                            }
+                                        }).catch(() => {
+                                            Message.error('请求异常');
+                                        }).finally(() => {
+                                            loading.value = false;
+                                        });
+                                    },
+                                    type: 'info',
+                                },
+                                {
+                                    default() {
+                                        return '统开';
+                                    }
+                                }
+                            ),
+                            h(resolveComponent('Button'),
+                                {
+                                    style: {
+                                        marginRight: '6px'
+                                    },
+                                    onClick: () => {
+                                        loading.value = true;
+                                        ctrlRelay(row.no, 3, false).then((res) => {
+                                            if (res.data.success) {
+                                                Message.info(res.data.msg);
+                                            } else {
+                                                Message.error(res.data.msg);
+                                            }
+                                        }).catch(() => {
+                                            Message.error('请求异常');
+                                        }).finally(() => {
+                                            loading.value = false;
+                                        });
+                                    },
+                                    type: 'info',
+                                },
+                                {
+                                    default() {
+                                        return '统关';
+                                    }
+                                }
+                            ),
+                            h(resolveComponent('Button'), {
+                                    style: {
+                                        marginRight: '6px'
+                                    },
+                                    onClick: () => {
+                                        openSettingsPanelWindow(row.no);
+
+                                    },
+                                    type: 'info',
+                                },
+                                {
+                                    default() {
+                                        return '设置';
+                                    }
+                                }
+                            ),
+                        ]);
+                    }
+                }
+            },
+
+
+        ],
+
+
+        checkboxConfig: {
+            labelField: 'id',
+            reserve: true,
+            highlight: true,
+            range: true
+        },
+
+
+    });
+
+    const gridEvent: VxeGridListeners<RowVO> = {
+        proxyQuery() {
+            console.log('数据代理查询事件');
+        },
+
+    };
+
+
+    const openSettingsPanelWindow = (no: number) => {
+        const windowWidth = 800;
+        const windowHeight = 480;
+        const windowCenteringCoordinate = getWindowCenteringCoordinate(windowWidth, windowHeight);
+        let path: string = '/views/iotEquipment/SettingsPanel.vue';
+        const views = import.meta.glob('/src/views/*/*.vue');
+        $WindowManager.exposed.addWindow({
+            type: WindowType.component,
+            // @ts-ignore
+            component: shallowRef(defineAsyncComponent(views[`/src${path}`])),
+            title: 'NWD设备设置面板',
+            taskBar: false,
+            status: WindowStatus.NORMAL,
+            zIndex: 1,
+            icon: 'icon-weibiaoti-_huabanfuben',
+            width: windowWidth,
+            height: windowHeight,
+            parentHandleId: $Window!.exposed.getHandleId(),
+            ...windowCenteringCoordinate,
+            initParameter: {
+                no
+            }
+        });
+    };
 
 
 </script>
 
 <template>
-  <div class="main-container">
+    <div class="main-container">
 
 
-    <vxe-grid ref="xGrid" v-bind="gridOptions"></vxe-grid>
+        <vxe-grid class="vxe-grid" ref='xGrid' v-bind="gridOptions" v-on="gridEvent"></vxe-grid>
 
-    <vxe-pager v-model:current-page="page.page" v-model:page-size="page.pageSize" :total="page.total"/>
+        <Spin v-show="loading" fix size="large"/>
 
-    <Spin v-show="loading" fix size="large"/>
-  </div>
+    </div>
 </template>
+
+<style scoped lang="scss">
+  .main-container {
+    //padding: 12px 16px 0 16px;
+    display: inline-block;
+    width: 100%;
+    height: 90%;
+    //border: 1px solid red;
+    .vxe-grid{
+      height: 100%;
+    }
+    :deep(.vxe-table--render-default) {
+      height: calc(100% - 200px);
+    }
+  }
+</style>
